@@ -260,8 +260,7 @@ bool cache HueBridge::SPIFFS_LIGHT(uint8_t no, struct HueLight *L, bool save = f
 	unsigned char * data = reinterpret_cast<unsigned char*>(L); // C++ way
 
 	if (save) {
-
-  			size_t bytes = L_File.write(data, sizeof(HueLight)); 
+	    size_t bytes = L_File.write(data, sizeof(HueLight));
   			
   			Serial.printf("L_File written: ID = %u, time = %uus, %uB \n", no, micros() - start_spiffs, bytes);
   			return 1; 
@@ -350,20 +349,20 @@ void cache HueBridge::HandleWebRequest() {
     //------------------------------------------------------
     //                    Initial web request handles  .... 
     //------------------------------------------------------
-     HTTPMethod RequestMethod = _HTTP->method(); 
-     long startime = millis();
+  HTTPMethod RequestMethod = _HTTP->method(); 
+  long startime = millis();
 
      // Serial.print("Uri: ");
      // Serial.println(_HTTP->uri());
 
-      if (_lastrequest > 0) {
-
-     	if ( millis() - _lastrequest < MIN_REFERSH_SAVE_DISABLE )  _save = false; else _save = true; 
+  if (_lastrequest > 0) {
+    if ( millis() - _lastrequest < MIN_REFERSH_SAVE_DISABLE )  _save = false; else _save = true; 
   //    	Serial.print("TSLR = ");
   //    	Serial.print(timer);
   //    	Serial.print("  :");
 		 }
-		 _lastrequest = millis();
+
+  _lastrequest = millis();
     /////////////////////////////////
 
 
@@ -374,118 +373,112 @@ void cache HueBridge::HandleWebRequest() {
     //Hue_Commands Command;  // holds command issued by client 
 
 
-    if ( _HTTP->uri() != "/api" && _HTTP->uri().charAt(4) == '/' && _HTTP->uri() != "/api/config"  ) {
-      user = _HTTP->uri().substring(5, _HTTP->uri().length()); 
-      if (user.indexOf("/") > 0) {
-        user = user.substring(0, user.indexOf("/"));
-      } 
-    }
+  if ( _HTTP->uri() != "/api" && _HTTP->uri().charAt(4) == '/' && _HTTP->uri() != "/api/config"  ) {
+    user = _HTTP->uri().substring(5, _HTTP->uri().length()); 
+    if (user.indexOf("/") > 0) {
+      user = user.substring(0, user.indexOf("/"));
+    } 
+  }
 
-    //Serial.print("Session user = ");
-    //Serial.println(user);
+  //Serial.print("Session user = ");
+  //Serial.println(user);
 
-    _isAuthorized = true; 
+  _isAuthorized = true; 
 
-    if (!_isAuthorized) return;  // exit if none authorised user... toDO... 
+  if (!_isAuthorized) {
+        Serial.print("Not Authorized!"); 
 
-    //------------------------------------------------------
-    //                    Determine command   
-    //------------------------------------------------------
+  return;  // exit if none authorised user... toDO... 
+}
+  //------------------------------------------------------
+  //                    Determine command   
+  //------------------------------------------------------
 
 //     /api/JPnfsdoKSVacEA0f/lights/8   --> renames light  
-    //Serial.print("  ");
-    size_t sent = 0; 
+  //Serial.print("  ");
+  size_t sent = 0; 
 
-    if        ( _HTTP->uri() == "/description.xml") {
+  if( _HTTP->uri() == "/description.xml") {
+        Serial.print("Sending Description"); 
 
-        Handle_Description(); 
+    Handle_Description(); 
 
-    } else if ( _HTTP->uri() == "/api"  ) {
-        Serial.println("CREATE_USER - toDO"); 
-        _HTTP->send(404);
-         
-    } else if ( _HTTP->uri().endsWith("/config") ) {
+  } else if ( _HTTP->uri() == "/api"  ) {
+      Serial.println("CREATE_USER - toDO"); 
+      _HTTP->send(404);
+       
+  } else if ( _HTTP->uri().endsWith("/config") ) {
+        Serial.print("Sending Config"); 
 
-        sent = printer.Send( _HTTP->client() , 200, "text/json", std::bind(&HueBridge::Send_Config_Callback, this) ); // Send_Config_Callback
+      sent = printer.Send( _HTTP->client() , 200, "text/json", std::bind(&HueBridge::Send_Config_Callback, this) ); // Send_Config_Callback
 
-    } else if (  _HTTP->uri() == "/api/" + user ) {
+  } else if (  _HTTP->uri() == "/api/" + user ) {
+        Serial.print("Sending User"); 
+      sent = printer.Send( _HTTP->client() , 200, "text/json", std::bind(&HueBridge::Send_DataStore_Callback, this) ); 
 
-        sent = printer.Send( _HTTP->client() , 200, "text/json", std::bind(&HueBridge::Send_DataStore_Callback, this) ); 
-
-    } else if ( _HTTP->uri().indexOf(user) != -1 && _HTTP->uri().endsWith("/state") ) {
-
-        if (RequestMethod == HTTP_PUT) { 
-
-          Put_light();
-
-        } else if (RequestMethod == HTTP_GET) {
-
-          Serial.print("GET_LIGHT - toDo"); // ToDo
-          _HTTP->send(404);
-
-        } else {
-          Serial.print("LIGHT Unknown req: ");
-          Serial.print(HTTPMethod_text[RequestMethod]);
-          _HTTP->send(404);
-
-        }
-    } else if ( _HTTP->uri().indexOf(user) != -1 && _HTTP->uri().indexOf("/groups/") != -1 )  { // old _HTTP->uri().endsWith("/action")
-
-        if (RequestMethod == HTTP_PUT) { 
-
-          Put_group();
-
-        } else if (RequestMethod == HTTP_GET) {
-          Serial.print("GET_GROUP- todo"); // ToDo
-          _HTTP->send(404);
-
-        } else {
-          Serial.print("GROUP Unknown req: ");
-          Serial.print(HTTPMethod_text[RequestMethod]);
-          _HTTP->send(404);
-        }
-
-	} else if (_HTTP->uri().indexOf(user) != -1 && _HTTP->uri().endsWith("/groups") ) {
-	
-	    if (RequestMethod == HTTP_PUT) { 
-          Serial.println("ADD_GROUP");
-          Add_Group();
-
-     	 }
-
-	} else if ( _HTTP->uri().substring(0, _HTTP->uri().lastIndexOf("/") ) == "/api/" + user + "/lights" ) {
+  } else if ( _HTTP->uri().indexOf(user) != -1 && _HTTP->uri().endsWith("/state") ) {
 
       if (RequestMethod == HTTP_PUT) { 
-          Serial.println("PUT_LIGHT_ROOT"); 
-          Put_Light_Root();
+        Serial.print("Putting Light"); 
 
-        } else {
-          Serial.println("GET_LIGHT_ROOT - todo"); 
-          _HTTP->send(404);
-        }
-    } else if  ( _HTTP->uri() == "/api/" + user + "/lights" ) {
-         Serial.println("GET_ALL_LIGHTS- todo"); 
-         _HTTP->send(404);
-    }
+        Put_light();
 
+      } else if (RequestMethod == HTTP_GET) {
 
-    	 
-    else 
-
-    {
-
-        Serial.print("UnknownUri: ");
-        Serial.print(_HTTP->uri());
-        Serial.print(" ");
-        Serial.println(HTTPMethod_text[RequestMethod]); 
-
-        if (_HTTP->arg("plain") != "" ) {
-          Serial.print("BODY: ");
-          Serial.println(_HTTP->arg("plain"));
-        }
+        Serial.print("GET_LIGHT - toDo"); // ToDo
         _HTTP->send(404);
-        return; 
 
+      } else {
+        Serial.print("LIGHT Unknown req: ");
+        Serial.print(HTTPMethod_text[RequestMethod]);
+        _HTTP->send(404);
+
+      }
+  } else if ( _HTTP->uri().indexOf(user) != -1 && _HTTP->uri().indexOf("/groups/") != -1 )  { // old _HTTP->uri().endsWith("/action")
+
+      if (RequestMethod == HTTP_PUT) { 
+        Serial.print("Putting Group"); 
+        Put_group();
+
+      } else if (RequestMethod == HTTP_GET) {
+        Serial.print("GET_GROUP- todo"); // ToDo
+        _HTTP->send(404);
+
+      } else {
+        Serial.print("GROUP Unknown req: ");
+        Serial.print(HTTPMethod_text[RequestMethod]);
+        _HTTP->send(404);
+      }
+
+  } else if (_HTTP->uri().indexOf(user) != -1 && _HTTP->uri().endsWith("/groups") ) {
+    if (RequestMethod == HTTP_PUT) { 
+        Serial.println("ADD_GROUP");
+        Add_Group();
+   	 }
+  } else if ( _HTTP->uri().substring(0, _HTTP->uri().lastIndexOf("/") ) == "/api/" + user + "/lights" ) {
+    if (RequestMethod == HTTP_PUT) { 
+        Serial.println("PUT_LIGHT_ROOT"); 
+        Put_Light_Root();
+      } else {
+        Serial.println("GET_LIGHT_ROOT - todo"); 
+        _HTTP->send(404);
+      }
+  } else if  ( _HTTP->uri() == "/api/" + user + "/lights" ) {
+       Serial.println("GET_ALL_LIGHTS- todo"); 
+       _HTTP->send(404);
+  } else {
+
+      Serial.print("UnknownUri: ");
+      Serial.print(_HTTP->uri());
+      Serial.print(" ");
+      Serial.println(HTTPMethod_text[RequestMethod]); 
+
+      if (_HTTP->arg("plain") != "" ) {
+        Serial.print("BODY: ");
+        Serial.println(_HTTP->arg("plain"));
+      }
+      _HTTP->send(404);
+      return;
     }
 
     //------------------------------------------------------
